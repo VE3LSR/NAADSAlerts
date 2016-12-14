@@ -88,11 +88,15 @@ class Main:
 
 start=Main()
 
-#start.PlayTones(ToneA, ToneB, .5, .5)
-#time.sleep(1)
+# I can play PlayTones twice, with no issues,
+# However the moment I change from PlayTones to PlayFile (or the reverse) it produces no audio
+# Except the debug log shows it playing sounds
 
 #start.PlayTones(ToneA, ToneB, .5, .5)
 #time.sleep(1)
+
+start.PlayTones(ToneA, ToneB, .5, .5)
+time.sleep(1)
 start.PlayFile("Pelmorex Test Message mp3 en.mp3")
 #time.sleep(2)
 #start.PlayFile("/home/Repos/CoolAcid/NAAD/Pelmorex Test Message mp3 en.mp3")
