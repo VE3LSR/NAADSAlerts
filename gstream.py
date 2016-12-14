@@ -15,10 +15,32 @@ class Main:
         print("INIT")
         self.pipeline = Gst.Pipeline.new('test-pipeline')
         self.bus = self.pipeline.get_bus()
-        self.sink = Gst.ElementFactory.make("autoaudiosink", "sink")
-        self.pipeline.add(self.sink)
-
+        # Create a Tee to connect too
+        self.tee = Gst.ElementFactory.make("tee", "audiotee")
+        self.pipeline.add(self.tee)
         ret = self.pipeline.set_state(Gst.State.PLAYING)
+
+    def link(self, element1, element2):
+        element1.link(element2)
+
+    def addAudioSink(self):
+        self.audiosink = Gst.ElementFactory.make("autoaudiosink", "audiosink")
+        self.pipeline.add(self.audiosink)
+        self.audiosink.sync_state_with_parent();
+        self.link(self.tee, self.audiosink)
+
+    def addFileSink(self):
+        self.encoder = Gst.ElementFactory.make('lamemp3enc', 'encoder')
+        self.pipeline.add(self.encoder)
+        self.encoder.sync_state_with_parent();
+        
+        self.filesink = Gst.ElementFactory.make("filesink", "filesink")
+        self.filesink.set_property('location', 'test.mp3')
+        self.pipeline.add(self.filesink)
+        self.filesink.sync_state_with_parent();
+
+        self.link(self.tee, self.encoder)
+        self.link(self.encoder, self.filesink)
 
     def probe_block(self, pad, buf):
         print("blocked")
@@ -32,7 +54,7 @@ class Main:
         tonesrc.set_property('is-live', True)
 
         self.pipeline.add(tonesrc)
-        tonesrc.link(self.sink)
+        self.link(tonesrc,self.tee)
 
         # Start Playing Tone 1
         print("Tone 1")
@@ -48,7 +70,7 @@ class Main:
 
         # Deconstruct our pipeline
         tonesrc.get_static_pad('src').add_probe(Gst.PadProbeType.BLOCK_DOWNSTREAM, self.probe_block)
-        tonesrc.unlink(self.sink)
+        tonesrc.unlink(self.tee)
         tonesrc.set_state(Gst.State.NULL)
         self.pipeline.remove(tonesrc)
 #        self.pipeline.set_state(Gst.State.READY)
@@ -64,8 +86,8 @@ class Main:
         decodesrc = Gst.ElementFactory.make("mad", "decode")
         self.pipeline.add(decodesrc)
 
-        filesrc.link(decodesrc)
-        decodesrc.link(self.sink)
+        self.link(filesrc,decodesrc)
+        self.link(decodesrc,self.tee)
 
         decodesrc.sync_state_with_parent();
 #        filesrc.sync_state_with_parent();
@@ -88,17 +110,19 @@ class Main:
 
 start=Main()
 
+#start.addAudioSink()
+start.addFileSink()
+
 # I can play PlayTones twice, with no issues,
 # However the moment I change from PlayTones to PlayFile (or the reverse) it produces no audio
 # Except the debug log shows it playing sounds
 
-#start.PlayTones(ToneA, ToneB, .5, .5)
-#time.sleep(1)
-
+start.PlayTones(ToneA, ToneB, .5, .5)
+time.sleep(1)
 start.PlayTones(ToneA, ToneB, .5, .5)
 time.sleep(1)
 start.PlayFile("Pelmorex Test Message mp3 en.mp3")
-#time.sleep(2)
+time.sleep(2)
 #start.PlayFile("/home/Repos/CoolAcid/NAAD/Pelmorex Test Message mp3 en.mp3")
 #start.PlayTones(ToneA, ToneB, .5, .5)
 #start.PlayTones(ToneA, ToneB, .5, .5)
