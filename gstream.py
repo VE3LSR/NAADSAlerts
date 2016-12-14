@@ -93,7 +93,7 @@ start=Main()
 
 #start.PlayTones(ToneA, ToneB, .5, .5)
 #time.sleep(1)
-start.PlayFile("/home/Repos/CoolAcid/NAAD/Pelmorex Test Message mp3 en.mp3")
+start.PlayFile("Pelmorex Test Message mp3 en.mp3")
 #time.sleep(2)
 #start.PlayFile("/home/Repos/CoolAcid/NAAD/Pelmorex Test Message mp3 en.mp3")
 #start.PlayTones(ToneA, ToneB, .5, .5)
