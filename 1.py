@@ -22,9 +22,10 @@ while True:
     if (eoa != -1):
         xml = data[0:eoa + len(EOATEXT)]
         data = data[eoa + len(EOATEXT):]
-        alert = BeautifulSoup(xml, "xml")
-        print('Alert received:\n')
-        print alert.prettify()
-        print alert.sender.string
+        alert = BeautifulSoup(xml, "lxml")
+        if alert.sender.string != "NAADS-Heartbeat":
+            print('Alert received:\n')
+            print(alert.prettify())
+        print(alert.sender.string)
 
 print('Connection closed')
