@@ -9,11 +9,11 @@ from time import sleep
 tones = [440, 300]
 
 class Audio():
-    def __init__(self,rate=44100):
+    def __init__(self,rate=44100, amplitude=-10):
         self.samplerate = rate
         self.channels = 1
         self.audio = None
-        self.amplitude = -10
+        self.amplitude = amplitude
 
     def play(self):
         pa = pyaudio.PyAudio()
@@ -57,13 +57,20 @@ class Audio():
         else:
             self.audio += sound
 
-alert_test=Audio(rate=48000)
-alert_test.tone(tones[0], 1000)
-alert_test.tone(tones[1], 1500)
-alert_test.silent(1500)
-alert_test.tone(tones[0], 1000)
-alert_test.tone(tones[1], 1500)
-alert_test.silent(5000)
-alert_test.addfile("Pelmorex Test Message mp3 en.mp3")
-#alert_test.play()
-alert_test.save("test.wav")
+if __name__ == "__main__":
+    # Create the audio
+    alert_test=Audio(rate=48000, amplitude=-25)
+    # Add some tones with silent bits
+    alert_test.tone(tones[0], 1000)
+    alert_test.tone(tones[1], 1500)
+    alert_test.silent(1500)
+    alert_test.tone(tones[0], 1000)
+    alert_test.tone(tones[1], 1500)
+    alert_test.silent(5000)
+
+    # Add a test message (find it yourself ;)
+    alert_test.addfile("../Pelmorex Test Message mp3 en.mp3")
+
+    # Play, or maybe save to a file!
+    alert_test.play()
+#    alert_test.save("test.wav")
