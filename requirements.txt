@@ -2,3 +2,4 @@ pyaudio
 numpy
 pydub
 shapely
+signxml

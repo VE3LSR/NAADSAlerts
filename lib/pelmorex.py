@@ -3,6 +3,7 @@
 from bs4 import BeautifulSoup
 from shapely.geometry import Point, Polygon
 from datetime import datetime, timedelta
+# from signxml import XMLVerifier # See Issue 4
 import socket, pprint
 
 
