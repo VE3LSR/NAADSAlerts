@@ -8,12 +8,12 @@ import socket, pprint
 class pelmorex():
     def __init__(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.TCP_HOST="streaming1.naad-adna.pelmorex.com"
+        self.TCP_HOST="streaming2.naad-adna.pelmorex.com"
         self.TCP_IP = socket.gethostbyname( self.TCP_HOST )
         self.TCP_PORT=8080
         self.BUFFER_SIZE=4098
-        self.data = ''
-        self.EOATEXT = "</alert>"
+        self.data = None
+        self.EOATEXT = b"</alert>"
 
     def _reconnect(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -25,7 +25,12 @@ class pelmorex():
 
     def start(self):
         while 1:
-            self.read()
+            result = self.read()
+            result = self.parse(result)
+            if result.sender.string != "NAADS-Heartbeat":
+                print('Alert received:\n')
+                print(result.prettify())
+            print(result.sender.string)
 
     # Checks to see if a point is in the alert poly
     # alert: The alert data
@@ -53,10 +58,6 @@ class pelmorex():
 
     def parse(self, data):
         alert = BeautifulSoup(data, "lxml")
-        if alert.sender.string != "NAADS-Heartbeat":
-            print('Alert received:\n')
-#            print(alert.prettify())
-        print(alert.sender.string)
         return alert
 
     def read(self):
@@ -67,21 +68,25 @@ class pelmorex():
             self._reconnect()
             return 
 
-        self.data += buffer
+        if self.data == None: 
+            self.data = buffer
+        else:
+            self.data += buffer
 
         eoa = self.data.find(self.EOATEXT)
         if (eoa != -1):
             xml = self.data[0:eoa + len(self.EOATEXT)]
             data = self.data[eoa + len(self.EOATEXT):]
-            result = self.parse(xml)
+            return xml
 
 if __name__ == "__main__":
     p = pelmorex()
-#    p.connect()
-#    p.start()
+    p.connect()
+    p.start()
 
-    testdata = open("../samples/6example_CAPCP_with_free_drawn_polygon.xml","r").read()
+#    testdata = open("../samples/6example_CAPCP_with_free_drawn_polygon.xml","r").read()
 #    testdata = open("Ontario.xml","r").read()
-    result = p.parse(testdata)
-    print(p.filter_in_geo(result, (44.389355, -79.690331)))
+#    result = p.parse(testdata)
+#    print(p.filter_in_geo(result, (44.389355, -79.690331)))
+#    print(result.sender.string)
 
