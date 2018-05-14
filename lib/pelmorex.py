@@ -26,11 +26,12 @@ class pelmorex():
     def start(self):
         while 1:
             result = self.read()
-            result = self.parse(result)
-            if result.sender.string != "NAADS-Heartbeat":
-                print('Alert received:\n')
-                print(result.prettify())
-            print(result.sender.string)
+            if result != False:
+                result = self.parse(result)
+                if result.sender.string != "NAADS-Heartbeat":
+                    print('Alert received:\n')
+                    print(result.prettify())
+                print(result.sender.string)
 
     # Checks to see if a point is in the alert poly
     # alert: The alert data
@@ -66,7 +67,7 @@ class pelmorex():
         except socket.error:
             print("Socket error")
             self._reconnect()
-            return 
+            return False
 
         if self.data == None: 
             self.data = buffer
@@ -76,8 +77,9 @@ class pelmorex():
         eoa = self.data.find(self.EOATEXT)
         if (eoa != -1):
             xml = self.data[0:eoa + len(self.EOATEXT)]
-            data = self.data[eoa + len(self.EOATEXT):]
+            self.data = self.data[eoa + len(self.EOATEXT):]
             return xml
+        return False
 
 if __name__ == "__main__":
     p = pelmorex()
