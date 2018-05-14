@@ -41,24 +41,25 @@ class pelmorex():
 
     def filter_in_geo(self, alert, points):
         for infos in alert.findAll('info'):
-            if hasattr(infos,"polygon"):
-                p = [tuple(map(float,s.split(','))) for s in infos.polygon.string.split(' ')]
-                poly = Polygon(p)
-                counter = 0
-                if all(isinstance(item, tuple) for item in points):
-                    for point in points:
-                        counter += 1
-                        p1 = Point(point[0], point[1])
+            for areas in infos.findAll('area'):
+                if areas.find("polygon"):
+                    p = [tuple(map(float,s.split(','))) for s in areas.polygon.string.split(' ')]
+                    poly = Polygon(p)
+                    counter = 0
+                    if all(isinstance(item, tuple) for item in points):
+                        for point in points:
+                            counter += 1
+                            p1 = Point(point[0], point[1])
+                            if p1.within(poly):
+                                return counter
+                    else:
+                        p1 = Point(points[0], points[1])
                         if p1.within(poly):
-                            return counter
-                else:
-                    p1 = Point(points[0], points[1])
-                    if p1.within(poly):
-                        return 1
+                            return 1
         return False
 
     def parse(self, data):
-        alert = BeautifulSoup(data, "lxml")
+        alert = BeautifulSoup(data, "xml")
         return alert
 
     def read(self):
@@ -87,7 +88,7 @@ if __name__ == "__main__":
     p.start()
 
 #    testdata = open("../samples/6example_CAPCP_with_free_drawn_polygon.xml","r").read()
-#    testdata = open("Ontario.xml","r").read()
+#    testdata = open("Ontario-Fixed.xml","r").read()
 #    result = p.parse(testdata)
 #    print(p.filter_in_geo(result, (44.389355, -79.690331)))
 #    print(result.sender.string)
