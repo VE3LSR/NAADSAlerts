@@ -4,8 +4,11 @@ from bs4 import BeautifulSoup
 from shapely.geometry import Point, Polygon
 from datetime import datetime, timedelta
 # from signxml import XMLVerifier # See Issue 4
-import socket, pprint
+import logging
+import socket
 
+logger = logging.getLogger("naads.pelmorex")
+logger.setLevel(logging.INFO)
 
 class pelmorex():
     def __init__(self):
@@ -19,13 +22,13 @@ class pelmorex():
         self.lastheartbeat = datetime.now()
 
     def _reconnect(self):
-        print("Reconnecting")
+        logger.debug("Reconnecting")
         self.s.close()
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect()
 
     def connect(self):
-        print("connecting")
+        logger.debug("Connecting")
         self.s.connect((self.TCP_IP, self.TCP_PORT))
         self.s.settimeout(10)
         self.lastheartbeat = datetime.now()
@@ -33,17 +36,18 @@ class pelmorex():
     def start(self):
         while 1:
             if self.lastheartbeat + timedelta(minutes=2) < datetime.now():
+                logger.debug('Missing heartbeat')
                 self._reconnect()
             result = self.read()
             if result != False:
                 result = self.parse(result)
                 if result.sender.string != "NAADS-Heartbeat":
-                    print('Alert received:\n')
+                    logger.info('Alert received', extra={'sender': result.sender.string})
                     self.save(result)
-                    print(result.prettify())
+                    logger.debug(result.prettify())
                 else:
+                    logger.debug('Heartbeat received', extra={'sender': result.sender.string})
                     self.lastheartbeat = datetime.now()
-                print(result.sender.string)
 
     # Checks to see if a point is in the alert poly
     # alert: The alert data
@@ -76,7 +80,7 @@ class pelmorex():
 
     def save(self, data, directory="savedata"):
         with open("%s/%s.xml" % (directory, data.identifier.string), "w") as file:
-            file.write(str(data))
+            file.write(str(data.prettify()))
 
     def read(self):
         try:
@@ -84,7 +88,7 @@ class pelmorex():
         except socket.timeout:
             return False
         except socket.error:
-            print("Socket error")
+            logger.debug("Socket error", exc_info=True)
             self._reconnect()
             return False
 
@@ -101,6 +105,13 @@ class pelmorex():
         return False
 
 if __name__ == "__main__":
+    import colorlog
+
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler()
+    handler.setFormatter(colorlog.ColoredFormatter('%(log_color)s%(asctime)s - %(levelname)s - %(name)s - %(message)s'))
+    logger.addHandler(handler)
+    logger.info("Test")
     p = pelmorex()
     p.connect()
     p.start()
