@@ -8,7 +8,7 @@ from bitstring import BitArray
 
 class X25:
     def __init__(self):
-        self.x25_crc_func = crcmod.predefined.mkCrcFun('x-25')        
+        self.x25_crc_func = crcmod.predefined.mkCrcFun('x-25')
         self.flag = struct.pack("<B", 0x7e)
 
     def _encode_address(self, address, ssid=0, last=False):
@@ -35,8 +35,8 @@ class X25:
         # Calculate the CRC
         c = self.x25_crc_func(packet)
         crc = BitArray(hex(c))
-        crc.reverse()
-        return (crc^'0xFFFF').bytes
+        crc.byteswap()
+        return (crc).bytes
 
     def packet_stuff(self, packet):
         # Bit Stuffing - If there is 5 high bits, add a low bit right after
@@ -62,7 +62,7 @@ class X25:
     def frames(self, packet):
         crc = self.calc_crc(packet)
         stuffed_packet = self.packet_stuff(packet)
-        return self.flag + stuffed_packet + crc + self.flag
+        return stuffed_packet + crc
 
 
 x = X25()
@@ -70,4 +70,3 @@ packet = x.packet("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test")
 packet = x.packet("ve3yca", 4, "cq", 0, relays = [], message="Test")
 # print (x.hexify(packet))
 sys.stdout.buffer.write(x.frames(packet))
-
