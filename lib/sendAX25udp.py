@@ -5,7 +5,6 @@ import crcmod
 import sys
 from bitstring import BitArray
 
-
 class X25:
     def __init__(self):
         self.x25_crc_func = crcmod.predefined.mkCrcFun('x-25')
@@ -25,9 +24,6 @@ class X25:
         result += chr(rssid)
         return result.encode('Latin-1')
 
-    def hexify(self, string):
-        return " ".join(hex((x))[2:] for x in string)
-
     def getAddress(self, address, ssid=0, last=False):
         return self._encode_address(address, ssid, last)
 
@@ -37,13 +33,6 @@ class X25:
         crc = BitArray(hex(c))
         crc.byteswap()
         return (crc).bytes
-
-    def packet_stuff(self, packet):
-        # Bit Stuffing - If there is 5 high bits, add a low bit right after
-        raw = BitArray(bytes=packet)
-#        print (raw.bin)
-#        raw.replace('0b11111', '0b111110')
-        return raw.bytes
 
     # Relays is an array of relays
     def packet(self, src, src_ssid = 0, dst = "CQ", dst_ssid = 0, relays = [], message = ""):
@@ -61,12 +50,10 @@ class X25:
 
     def frames(self, packet):
         crc = self.calc_crc(packet)
-        stuffed_packet = self.packet_stuff(packet)
-        return stuffed_packet + crc
+        return packet + crc
 
 
 x = X25()
 packet = x.packet("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test")
 packet = x.packet("ve3yca", 4, "cq", 0, relays = [], message="Test")
-# print (x.hexify(packet))
 sys.stdout.buffer.write(x.frames(packet))
