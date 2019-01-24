@@ -34,7 +34,7 @@ class X25:
         return (crc).bytes
 
     # Relays is an array of relays
-    def buildPacket(self, src, src_ssid = 0, dst = "CQ", dst_ssid = 0, relays = [], message = ""):
+    def buildPacket(self, src, src_ssid = 0, dst = "CQ", dst_ssid = 0, relays = [], cf = 0x03, message = ""):
         # Start Building the packet
         packet = struct.pack("<7s", self.getAddress(dst, dst_ssid))
         if len(relays) == 0:
@@ -44,7 +44,7 @@ class X25:
             for relay in relays[:-1]:
                 packet += struct.pack("<7s", self.getAddress(relay[0], relay[1]))
             packet += struct.pack("<7s", self.getAddress(relays[-1][0], relays[-1][1], True))
-        packet += struct.pack("<BB{}s".format(len(message)), 0x3F, 0xF0, bytes(message, "ASCII"))
+        packet += struct.pack("<BB{}s".format(len(message)), cf, 0xF0, bytes(message, "ASCII"))
         crc = self.calc_crc(packet)
         self.packet = packet + crc
 
@@ -58,5 +58,5 @@ class X25:
 
 x = X25()
 #x.buildPacket("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test")
-x.buildPacket("ve3yca", 4, "APRS", 0, relays = [], message="Test")
+x.buildPacket("ve3yca", 4, "APRS", 0, relays = [['VE3LSR',0]], message=":BLN0LOCAL:Test Message") # Packet
 x.send('192.168.85.3', 10093)
