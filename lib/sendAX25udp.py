@@ -3,7 +3,7 @@
 import struct
 import crcmod
 import sys
-from bitstring import BitStream
+from bitstring import BitArray
 
 
 class X25:
@@ -34,13 +34,16 @@ class X25:
     def calc_crc(self, packet):
         # Calculate the CRC
         c = self.x25_crc_func(packet)
-        crc = BitStream(hex(c))
+        crc = BitArray(hex(c))
         crc.reverse()
         return (crc^'0xFFFF').bytes
 
     def packet_stuff(self, packet):
         # Bit Stuffing - If there is 5 high bits, add a low bit right after
-        return packet
+        raw = BitArray(bytes=packet)
+#        print (raw.bin)
+#        raw.replace('0b11111', '0b111110')
+        return raw.bytes
 
     # Relays is an array of relays
     def packet(self, src, src_ssid = 0, dst = "CQ", dst_ssid = 0, relays = [], message = ""):
@@ -58,12 +61,13 @@ class X25:
 
     def frames(self, packet):
         crc = self.calc_crc(packet)
-        stuffed_packet = packet_stuff(packet)
+        stuffed_packet = self.packet_stuff(packet)
         return self.flag + stuffed_packet + crc + self.flag
 
+
 x = X25()
+packet = x.packet("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test")
+packet = x.packet("ve3yca", 4, "cq", 0, relays = [], message="Test")
+# print (x.hexify(packet))
+sys.stdout.buffer.write(x.frames(packet))
 
-#sys.stdout.buffer.write (x.packet("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test"))
-#sys.stdout.buffer.write (x.packet("ve3yca", 4, "cq", 0, relays = [], message="Test"))
-
-print (x.hexify(x.packet("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test")))
