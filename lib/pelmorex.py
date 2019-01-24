@@ -20,16 +20,23 @@ class pelmorex():
         self.data = None
         self.EOATEXT = b"</alert>"
         self.lastheartbeat = datetime.now()
+        self.connected = False
 
     def _reconnect(self):
         logger.debug("Reconnecting")
+        self.connected == False
         self.s.close()
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect()
 
     def connect(self):
-        logger.debug("Connecting")
-        self.s.connect((self.TCP_IP, self.TCP_PORT))
+        while self.connected == False:
+            logger.debug("Connecting")
+            try: 
+                self.s.connect((self.TCP_IP, self.TCP_PORT))
+                self.connected = True
+            except:
+                pass
         self.s.settimeout(10)
         self.lastheartbeat = datetime.now()
 
