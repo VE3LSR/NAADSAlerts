@@ -9,6 +9,7 @@ from bitstring import BitStream
 class X25:
     def __init__(self):
         self.x25_crc_func = crcmod.predefined.mkCrcFun('x-25')        
+        self.flag = struct.pack("<B", 0x7e)
 
     def _encode_address(self, address, ssid=0, last=False):
         if ssid > 15:
@@ -30,9 +31,19 @@ class X25:
     def getAddress(self, address, ssid=0, last=False):
         return self._encode_address(address, ssid, last)
 
+    def calc_crc(self, packet):
+        # Calculate the CRC
+        c = self.x25_crc_func(packet)
+        crc = BitStream(hex(c))
+        crc.reverse()
+        return (crc^'0xFFFF').bytes
+
+    def packet_stuff(self, packet):
+        # Bit Stuffing - If there is 5 high bits, add a low bit right after
+        return packet
+
     # Relays is an array of relays
     def packet(self, src, src_ssid = 0, dst = "CQ", dst_ssid = 0, relays = [], message = ""):
-        flag = struct.pack("<B", 0x7e)
         # Start Building the packet
         packet = struct.pack("<7s", self.getAddress(dst, dst_ssid))
         if len(relays) == 0:
@@ -43,13 +54,12 @@ class X25:
                 packet += struct.pack("<7s", self.getAddress(relay[0], relay[1]))
             packet += struct.pack("<7s", self.getAddress(relays[-1][0], relays[-1][1], True))
         packet += struct.pack("<BB{}s".format(len(message)), 0x3F, 0xF0, bytes(message, "ASCII"))
-        # Bit Stuffing - If there is 5 high bits, add a low bit right after
-        #TODO
-        # Calculate the CRC
-        c = self.x25_crc_func(packet)
-        crc = BitStream(hex(c))
-        crc.reverse()
-        return (flag + packet + (crc^'0xFFFF').bytes + flag)
+        return packet
+
+    def frames(self, packet):
+        crc = self.calc_crc(packet)
+        stuffed_packet = packet_stuff(packet)
+        return self.flag + stuffed_packet + crc + self.flag
 
 x = X25()
 
