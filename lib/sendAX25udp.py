@@ -8,7 +8,6 @@ from bitstring import BitArray
 class X25:
     def __init__(self):
         self.x25_crc_func = crcmod.predefined.mkCrcFun('x-25')
-        self.flag = struct.pack("<B", 0x7e)
 
     def _encode_address(self, address, ssid=0, last=False):
         if ssid > 15:
@@ -46,14 +45,10 @@ class X25:
                 packet += struct.pack("<7s", self.getAddress(relay[0], relay[1]))
             packet += struct.pack("<7s", self.getAddress(relays[-1][0], relays[-1][1], True))
         packet += struct.pack("<BB{}s".format(len(message)), 0x3F, 0xF0, bytes(message, "ASCII"))
-        return packet
-
-    def frames(self, packet):
         crc = self.calc_crc(packet)
         return packet + crc
-
 
 x = X25()
 packet = x.packet("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test")
 packet = x.packet("ve3yca", 4, "cq", 0, relays = [], message="Test")
-sys.stdout.buffer.write(x.frames(packet))
+sys.stdout.buffer.write(packet)
