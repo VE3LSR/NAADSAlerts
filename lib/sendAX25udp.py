@@ -2,7 +2,7 @@
 
 import struct
 import crcmod
-import sys
+import socket
 from bitstring import BitArray
 
 class X25:
@@ -34,7 +34,7 @@ class X25:
         return (crc).bytes
 
     # Relays is an array of relays
-    def packet(self, src, src_ssid = 0, dst = "CQ", dst_ssid = 0, relays = [], message = ""):
+    def buildPacket(self, src, src_ssid = 0, dst = "CQ", dst_ssid = 0, relays = [], message = ""):
         # Start Building the packet
         packet = struct.pack("<7s", self.getAddress(dst, dst_ssid))
         if len(relays) == 0:
@@ -46,9 +46,17 @@ class X25:
             packet += struct.pack("<7s", self.getAddress(relays[-1][0], relays[-1][1], True))
         packet += struct.pack("<BB{}s".format(len(message)), 0x3F, 0xF0, bytes(message, "ASCII"))
         crc = self.calc_crc(packet)
-        return packet + crc
+        self.packet = packet + crc
+
+    def getPacket(self):
+        return self.packet
+
+    def send(self, ip, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+        sock.sendto(self.packet, (ip, port))
+
 
 x = X25()
-packet = x.packet("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test")
-packet = x.packet("ve3yca", 4, "cq", 0, relays = [], message="Test")
-sys.stdout.buffer.write(packet)
+#x.buildPacket("w2fs", 4, "cq", 0, relays = [['RELAY', 0]], message="Test")
+x.buildPacket("ve3yca", 4, "APRS", 0, relays = [], message="Test")
+x.send('192.168.85.3', 10093)
