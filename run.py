@@ -3,7 +3,7 @@
 import colorlog
 import logging
 import yaml
-import lib
+from lib.pelmorex import Alerting
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -14,5 +14,5 @@ logger.addHandler(handler)
 with open("config.yml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile)
 
-alert = pelmorex.Alerting(cfg)
+alert = Alerting(cfg)
 alert.run()
