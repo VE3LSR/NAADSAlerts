@@ -1,0 +1,10 @@
+version: "3"
+services:
+    naads:
+        image: ve3lsr/naadsalert
+        build: .
+        restart: always
+        ports: 
+            - "9023:23"
+        volumes:
+            - ./config.yml:/opt/config.yml

@@ -1,131 +1,107 @@
 #!/usr/bin/env python3
 
-from bs4 import BeautifulSoup
-from shapely.geometry import Point, Polygon
-from datetime import datetime, timedelta
-# from signxml import XMLVerifier # See Issue 4
+import colorlog
 import logging
-import socket
+import pynaads
+import pyax25
+import json
+import time
+from elasticsearch import Elasticsearch
+import hashlib
+import crcmod
+import yaml
 
-logger = logging.getLogger("naads.pelmorex")
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter('%(log_color)s%(asctime)s - %(levelname)s - %(name)s - %(message)s'))
+logger.addHandler(handler)
 
-class pelmorex():
-    def __init__(self):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.TCP_HOST="streaming2.naad-adna.pelmorex.com"
-        self.TCP_IP = socket.gethostbyname( self.TCP_HOST )
-        self.TCP_PORT=8080
-        self.BUFFER_SIZE=4098
-        self.data = None
-        self.EOATEXT = b"</alert>"
-        self.lastheartbeat = datetime.now()
-        self.connected = False
-
-    def _reconnect(self):
-        logger.debug("Reconnecting")
-        self.connected == False
-        self.s.close()
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect()
-
-    def connect(self):
-        while self.connected == False:
-            logger.debug("Connecting")
-            try: 
-                self.s.connect((self.TCP_IP, self.TCP_PORT))
-                self.connected = True
-            except:
-                pass
-        self.s.settimeout(10)
-        self.lastheartbeat = datetime.now()
-
-    def start(self):
-        while 1:
-            if self.lastheartbeat + timedelta(minutes=2) < datetime.now():
-                logger.debug('Missing heartbeat')
-                self._reconnect()
-            result = self.read()
-            if result != False:
-                result = self.parse(result)
-                if result.sender.string != "NAADS-Heartbeat":
-                    logger.info('Alert received', extra={'sender': result.sender.string})
-                    self.save(result)
-                    logger.debug(result.prettify())
-                else:
-                    logger.debug('Heartbeat received', extra={'sender': result.sender.string})
-                    self.lastheartbeat = datetime.now()
-
-    # Checks to see if a point is in the alert poly
-    # alert: The alert data
-    # points: A tuple or a list of tuples consisting of points
-    #
-    # Returns the first point position within the poly or false
-
-    def filter_in_geo(self, alert, points):
-        for infos in alert.findAll('info'):
-            for areas in infos.findAll('area'):
-                if areas.find("polygon"):
-                    p = [tuple(map(float,s.split(','))) for s in areas.polygon.string.split(' ')]
-                    poly = Polygon(p)
-                    counter = 0
-                    if all(isinstance(item, tuple) for item in points):
-                        for point in points:
-                            counter += 1
-                            p1 = Point(point[0], point[1])
-                            if p1.within(poly):
-                                return counter
-                    else:
-                        p1 = Point(points[0], points[1])
-                        if p1.within(poly):
-                            return 1
-        return False
-
-    def parse(self, data):
-        alert = BeautifulSoup(data, "xml")
-        return alert
-
-    def save(self, data, directory="savedata"):
-        with open("%s/%s.xml" % (directory, data.identifier.string), "w") as file:
-            file.write(str(data.prettify()))
-
-    def read(self):
-        try:
-            buffer = self.s.recv(self.BUFFER_SIZE)
-        except socket.timeout:
-            return False
-        except socket.error:
-            logger.debug("Socket error", exc_info=True)
-            self._reconnect()
-            return False
-
-        if self.data == None: 
-            self.data = buffer
+class Alerting():
+    def __init__(self, config=False):
+        self.esItems = []
+        if config == False:
+            with open("config.yml", 'r') as ymlfile:
+                self.cfg = yaml.load(ymlfile)
         else:
-            self.data += buffer
+            self.cfg = config
 
-        eoa = self.data.find(self.EOATEXT)
-        if (eoa != -1):
-            xml = self.data[0:eoa + len(self.EOATEXT)]
-            self.data = self.data[eoa + len(self.EOATEXT):]
-            return xml
-        return False
+        self.geopoints = [tuple(map(float,e.split(','))) for e in self.cfg['naads']['geopoints']]
 
-if __name__ == "__main__":
-    import colorlog
+        self.p = pynaads.naads(passhb=False)
 
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
-    handler.setFormatter(colorlog.ColoredFormatter('%(log_color)s%(asctime)s - %(levelname)s - %(name)s - %(message)s'))
-    logger.addHandler(handler)
-    logger.info("Test")
-    p = pelmorex()
-    p.connect()
-    p.start()
+        if self.cfg['ax25']['enabled']:
+            self.x = pyax25.AX25(self.cfg['ax25']['call'], self.cfg['ax25']['ip_address'], self.cfg['ax25']['port'], self.cfg['ax25']['ssid'])
+            self.x.setDst(self.cfg['ax25']['dest'])
+            for relay in self.cfg['ax25']['relays']:
+                self.x.addRelay(relay.split(',')[0], int(relay.split(',')[1]))
 
-#    testdata = open("../samples/6example_CAPCP_with_free_drawn_polygon.xml","r").read()
-#    testdata = open("Ontario-Fixed.xml","r").read()
-#    result = p.parse(testdata)
-#    print(p.filter_in_geo(result, (44.389355, -79.690331)))
-#    print(result.sender.string)
+        if self.cfg['elasticsearch']['enabled']:
+            self.es = Elasticsearch(self.cfg['elasticsearch']['host_url'])
 
+        self.p.connect()
+        self.p.start()
+        self.sendAX("VE3LSR Weather Alerting Started")
+
+    def clcMap(self, q):
+        if q['geocode']['layer:EC-MSC-SMC:1.0:CLC'][0] in self.cfg['ax25']['mappings']:
+            zone = "WX{}".format(self.cfg['ax25']['mappings'][q['geocode']['layer:EC-MSC-SMC:1.0:CLC'][0]])
+        else:
+            zone = "WX00"
+        return zone
+
+    def sendAX(self, message, zone=""):
+        logger.info("Bulletin: {}, Group: {}".format(message, zone))
+        if self.cfg['ax25']['enabled']:
+            try:
+                self.x.sendBulletin(message, "{}".format(zone))
+            except:
+                logger.error("Error sending AX25 message")
+
+    def elasticAdd(self, event):
+        self.esItems.append({'index': {'_id': event['id']}})
+        self.esItems.append(event)
+
+    def elasticSend(self):
+        if self.cfg['elasticsearch']['enabled']:
+            self.es.bulk(index="naads", doc_type="_doc", body=self.esItems)
+        self.esItems = []
+
+    def sendAlerts(self, alert):
+        zone = self.clcMap(alert)
+        # cap-pac@canada.ca are weather alerts, we can treat them all the same
+        if alert['sender'] == "cap-pac@canada.ca":
+            self.sendAX("{}: {} - {}".format(alert['msgType'], alert['areaDesc'], alert['headline']), zone)
+        # Amber Alerts
+        elif alert['eventCode']['profile:CAP-CP:Event:0.4'] == 'amber':
+            self.sendAX("{}: {} - {}: {}".format(alert['event'], alert['areaDesc'], alert['headline'], alert['parameter']['layer:SOREM:2.0:WirelessText']), 'AMBR')
+        # All other alerts
+        else:
+            if 'layer:SOREM:2.0:WirelessText' in alert['parameter']:
+                self.sendAX("{}: {} - {}: {}".format(alert['event'], alert['areaDesc'], alert['headline'], alert['parameter']['layer:SOREM:2.0:WirelessText']), 'ALRT')
+            else:
+                self.sendAX("{}: {} - {}".format(alert['event'], alert['areaDesc'], alert['headline']), 'ALRT')
+
+    def run(self):
+        while True:
+            time.sleep(0.2)
+            item = self.p.getQueue()
+            if item != False:
+                counter = 0
+                for q in item:
+                    q['local-event'] = False
+                    if self.p.filter_in_clc(q, self.cfg['naads']['zones']):
+                        q['local-event'] = True
+                    if self.p.filter_in_geo(q, self.geopoints):
+                        q['local-event'] = True
+                    if q['local-event'] == True:
+                        logger.info("Local Event")
+                        if q['language'] in self.cfg['naads']['language']:
+                            self.sendAlerts(q)
+                    self.elasticAdd(q)
+                    counter += 1
+                logger.info("Total events: {}".format(counter))
+                self.elasticSend()
+
+alert = Alerting()
+alert.run()
