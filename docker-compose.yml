@@ -1,7 +1,7 @@
 version: "3"
 services:
     naads:
-        image: ve3lsr/naadsalert
+        image: ve3lsr/naadsalerts
         build: .
         restart: always
         ports: 
