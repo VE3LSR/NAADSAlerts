@@ -2,7 +2,5 @@
 colorlog
 elasticsearch
 pyyaml
-#pynaads
-#pyax25
-git+git://github.com/ve3lsr/pynaads@master#pynaads
-git+git://github.com/ve3lsr/pyax25@master#pyax25
+pynaads
+pyax25
