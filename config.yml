@@ -20,7 +20,7 @@ naads:
         - -80.01617431640625, 44.517072444655184
 
 ax25:
-    enabled: true
+    enabled: false
     call: VE3LSR
     dest: ALSRWX
     ssid: 4

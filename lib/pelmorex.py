@@ -68,7 +68,10 @@ class Alerting():
         self.esItems = []
 
     def sendAlerts(self, alert):
-        zone = self.clcMap(alert)
+        if alert['geocode']['layer:EC-MSC-SMC:1.0:CLC']:
+            zone = self.clcMap(alert)
+        else:
+            zone = ""
         # cap-pac@canada.ca are weather alerts, we can treat them all the same
         if alert['sender'] == "cap-pac@canada.ca":
             self.sendAX("{}: {} - {}".format(alert['msgType'], alert['areaDesc'], alert['headline']), zone)
