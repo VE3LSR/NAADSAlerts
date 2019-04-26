@@ -78,11 +78,11 @@ class Alerting():
             self.sendAX("{}: {} - {}".format(alert['msgType'], alert['areaDesc'], alert['headline']), zone)
         # Amber Alerts
         elif alert['eventCode']['profile:CAP-CP:Event:0.4'] == 'amber':
-            self.sendAX("{}: {} - {}: {}".format(alert['event'], alert['areaDesc'], alert['headline'], alert['parameter']['layer:SOREM:2.0:WirelessText']), 'AMBR')
+            self.sendAX("{}: {} - {}: {}".format(alert['event'], alert['areaDesc'], alert['headline'], alert['parameter']['layer:SOREM:2.0:WirelessText'][0].replace('\\n', '  ')), 'AMBR')
         # All other alerts
         else:
             if 'layer:SOREM:2.0:WirelessText' in alert['parameter']:
-                self.sendAX("{}: {} - {}: {}".format(alert['event'], alert['areaDesc'], alert['headline'], alert['parameter']['layer:SOREM:2.0:WirelessText']), 'ALRT')
+                self.sendAX("{}: {} - {}: {}".format(alert['event'], alert['areaDesc'], alert['headline'], alert['parameter']['layer:SOREM:2.0:WirelessText'][0].replace('\\n', '  ')), 'ALRT')
             else:
                 self.sendAX("{}: {} - {}".format(alert['event'], alert['areaDesc'], alert['headline']), 'ALRT')
 
